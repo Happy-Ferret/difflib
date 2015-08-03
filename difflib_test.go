@@ -83,7 +83,7 @@ var diffTests = []struct {
 		"",
 		"",
 		[]DiffRecord{
-			{"", Common},
+			{[]string{""}, Common},
 		},
 		`<tr><td class="line-num">1</td><td><pre></pre></td><td><pre></pre></td><td class="line-num">1</td></tr>
 `,
@@ -93,7 +93,7 @@ var diffTests = []struct {
 		"same",
 		"same",
 		[]DiffRecord{
-			{"same", Common},
+			{[]string{"same"}, Common},
 		},
 		`<tr><td class="line-num">1</td><td><pre>same</pre></td><td><pre>same</pre></td><td class="line-num">1</td></tr>
 `,
@@ -109,10 +109,10 @@ two
 three
 `,
 		[]DiffRecord{
-			{"one", Common},
-			{"two", Common},
-			{"three", Common},
-			{"", Common},
+			{[]string{"one"}, Common},
+			{[]string{"two"}, Common},
+			{[]string{"three"}, Common},
+			{[]string{""}, Common},
 		},
 		`<tr><td class="line-num">1</td><td><pre>one</pre></td><td><pre>one</pre></td><td class="line-num">1</td></tr>
 <tr><td class="line-num">2</td><td><pre>two</pre></td><td><pre>two</pre></td><td class="line-num">2</td></tr>
@@ -131,11 +131,11 @@ five
 three
 `,
 		[]DiffRecord{
-			{"one", Common},
-			{"two", LeftOnly},
-			{"five", RightOnly},
-			{"three", Common},
-			{"", Common},
+			{[]string{"one"}, Common},
+			{[]string{"two"}, LeftOnly},
+			{[]string{"five"}, RightOnly},
+			{[]string{"three"}, Common},
+			{[]string{""}, Common},
 		},
 		`<tr><td class="line-num">1</td><td><pre>one</pre></td><td><pre>one</pre></td><td class="line-num">1</td></tr>
 <tr><td class="line-num">2</td><td class="deleted"><pre>two</pre></td><td></td><td></td></tr>
@@ -160,14 +160,14 @@ Wagner
 `,
 
 		[]DiffRecord{
-			{"Beethoven", Common},
-			{"Bach", Common},
-			{"Mozart", LeftOnly},
-			{"Brahms", RightOnly},
-			{"Chopin", Common},
-			{"Liszt", RightOnly},
-			{"Wagner", RightOnly},
-			{"", Common},
+			{[]string{"Beethoven"}, Common},
+			{[]string{"Bach"}, Common},
+			{[]string{"Mozart"}, LeftOnly},
+			{[]string{"Brahms"}, RightOnly},
+			{[]string{"Chopin"}, Common},
+			{[]string{"Liszt"}, RightOnly},
+			{[]string{"Wagner"}, RightOnly},
+			{[]string{""}, Common},
 		},
 		`<tr><td class="line-num">1</td><td><pre>Beethoven</pre></td><td><pre>Beethoven</pre></td><td class="line-num">1</td></tr>
 <tr><td class="line-num">2</td><td><pre>Bach</pre></td><td><pre>Bach</pre></td><td class="line-num">2</td></tr>
@@ -195,17 +195,17 @@ legato
 allegro
 `,
 		[]DiffRecord{
-			{"adagio", LeftOnly},
-			{"vivace", LeftOnly},
-			{"adagio adagio", RightOnly},
-			{"staccato", RightOnly},
-			{"staccato legato", Common},
-			{"presto", LeftOnly},
-			{"lento", LeftOnly},
-			{"staccato", RightOnly},
-			{"legato", RightOnly},
-			{"allegro", RightOnly},
-			{"", Common},
+			{[]string{"adagio"}, LeftOnly},
+			{[]string{"vivace"}, LeftOnly},
+			{[]string{"adagio adagio"}, RightOnly},
+			{[]string{"staccato"}, RightOnly},
+			{[]string{"staccato legato"}, Common},
+			{[]string{"presto"}, LeftOnly},
+			{[]string{"lento"}, LeftOnly},
+			{[]string{"staccato"}, RightOnly},
+			{[]string{"legato"}, RightOnly},
+			{[]string{"allegro"}, RightOnly},
+			{[]string{""}, Common},
 		},
 		`<tr><td class="line-num">1</td><td class="deleted"><pre>adagio</pre></td><td></td><td></td></tr>
 <tr><td class="line-num">2</td><td class="deleted"><pre>vivace</pre></td><td></td><td></td></tr>
@@ -229,7 +229,7 @@ func TestDiff(t *testing.T) {
 
 		diff := Diff(seq1, seq2)
 		if !reflect.DeepEqual(diff, test.Diff) {
-			t.Errorf("%d. Diff(%v, %v) => %v, expected %v",
+			t.Fatalf("%d. Diff(%v, %v) => %v, expected %v",
 				i, seq1, seq2, diff, test.Diff)
 		}
 

@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"strings"
 )
 
 // DeltaType describes the relationship of elements in two
@@ -38,6 +39,11 @@ const (
 	RightOnly
 )
 
+type DiffRecord struct {
+	PayloadLines []string
+	Delta        DeltaType
+}
+
 // String returns a string representation for DeltaType.
 func (t DeltaType) String() string {
 	switch t {
@@ -51,15 +57,42 @@ func (t DeltaType) String() string {
 	return "?"
 }
 
-type DiffRecord struct {
-	Payload string
-	Delta   DeltaType
+func (d DiffRecord) Payload() string {
+	return strings.Join(d.PayloadLines, "\n")
+}
+
+func (d DiffRecord) Summary(leftLine, rightLine int) string {
+	var delta string
+	if d.Delta == LeftOnly {
+		delta = "-"
+	} else {
+		delta = "+"
+	}
+	delta += fmt.Sprintf("%d", leftLine)
+
+	return fmt.Sprintf("@@ %s,%d @@", delta, len(d.PayloadLines))
+}
+
+func (d DiffRecord) QuotedPayload() string {
+	buf := bytes.NewBufferString("")
+	for _, line := range d.PayloadLines {
+		var symbol byte
+		if d.Delta == LeftOnly {
+			symbol = '-'
+		} else {
+			symbol = '+'
+		}
+
+		buf.WriteString(fmt.Sprintf("%c%s\n", symbol, line))
+	}
+
+	return buf.String()
 }
 
 // String returns a string representation of d. The string is a
 // concatenation of the delta type and the payload.
 func (d DiffRecord) String() string {
-	return fmt.Sprintf("%s %s", d.Delta, d.Payload)
+	return fmt.Sprintf("%s %s", d.Delta, d.Payload())
 }
 
 // Diff returns the result of diffing the seq1 and seq2.
@@ -70,14 +103,14 @@ func Diff(seq1, seq2 []string) (diff []DiffRecord) {
 	start, end := numEqualStartAndEndElements(seq1, seq2)
 
 	for _, content := range seq1[:start] {
-		diff = append(diff, DiffRecord{content, Common})
+		diff = append(diff, DiffRecord{strings.Split(content, "\n"), Common})
 	}
 
 	diffRes := compute(seq1[start:len(seq1)-end], seq2[start:len(seq2)-end])
 	diff = append(diff, diffRes...)
 
 	for _, content := range seq1[len(seq1)-end:] {
-		diff = append(diff, DiffRecord{content, Common})
+		diff = append(diff, DiffRecord{strings.Split(content, "\n"), Common})
 	}
 	return
 }
@@ -105,7 +138,7 @@ func HTMLDiff(seq1, seq2 []string) string {
 			if d.Delta == LeftOnly {
 				fmt.Fprint(buf, ` class="deleted"`)
 			}
-			fmt.Fprintf(buf, "><pre>%s</pre>", d.Payload)
+			fmt.Fprintf(buf, "><pre>%s</pre>", d.Payload())
 		} else {
 			buf.WriteString("</td><td>")
 		}
@@ -115,11 +148,38 @@ func HTMLDiff(seq1, seq2 []string) string {
 			if d.Delta == RightOnly {
 				fmt.Fprint(buf, ` class="added"`)
 			}
-			fmt.Fprintf(buf, `><pre>%s</pre></td><td class="line-num">%d`, d.Payload, j)
+			fmt.Fprintf(buf, `><pre>%s</pre></td><td class="line-num">%d`, d.Payload(), j)
 		} else {
 			buf.WriteString("></td><td>")
 		}
 		buf.WriteString("</td></tr>\n")
+	}
+	return buf.String()
+}
+
+// Returns diff in a format similar to `diff -u`
+func UDiff(nameLeft, nameRight string, seq1, seq2 []string) string {
+	buf := bytes.NewBufferString(fmt.Sprintf("--- %s\n+++ %s\n", nameLeft, nameRight))
+	leftCounter, rightCounter := 0, 0
+
+ForLoop:
+	for _, d := range Diff(seq1, seq2) {
+		switch d.Delta {
+		case LeftOnly:
+			leftCounter += len(d.PayloadLines)
+		case RightOnly:
+			rightCounter += len(d.PayloadLines)
+		case Common:
+			leftCounter += len(d.PayloadLines)
+			rightCounter += len(d.PayloadLines)
+			continue ForLoop
+		}
+
+		buf.WriteString(d.Summary(leftCounter, rightCounter))
+		buf.WriteString("\n")
+
+		buf.WriteString(d.QuotedPayload())
+		buf.WriteString("\n")
 	}
 	return buf.String()
 }
@@ -175,13 +235,13 @@ func compute(seq1, seq2 []string) (diff []DiffRecord) {
 	i, j := len(seq1), len(seq2)
 	for i > 0 || j > 0 {
 		if i > 0 && matrix[i][j] == matrix[i-1][j] {
-			diff = append(diff, DiffRecord{seq1[len(seq1)-i], LeftOnly})
+			diff = append(diff, DiffRecord{strings.Split(seq1[len(seq1)-i], "\n"), LeftOnly})
 			i--
 		} else if j > 0 && matrix[i][j] == matrix[i][j-1] {
-			diff = append(diff, DiffRecord{seq2[len(seq2)-j], RightOnly})
+			diff = append(diff, DiffRecord{strings.Split(seq2[len(seq2)-j], "\n"), RightOnly})
 			j--
 		} else if i > 0 && j > 0 {
-			diff = append(diff, DiffRecord{seq1[len(seq1)-i], Common})
+			diff = append(diff, DiffRecord{strings.Split(seq1[len(seq1)-i], "\n"), Common})
 			i--
 			j--
 		}
